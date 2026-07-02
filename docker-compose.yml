@@ -1,0 +1,57 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: security_events
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    ports:
+      - "8080:8080"
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/
+      PRODUCER_ADDR: ":8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    ports:
+      - "8081:8081"
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/
+      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/security_events?sslmode=disable
+      CONSUMER_ADDR: ":8081"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
