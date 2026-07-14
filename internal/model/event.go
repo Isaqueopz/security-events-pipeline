@@ -59,7 +59,7 @@ type SecurityEvent struct {
 	FilePath    string    `json:"file_path,omitempty"`
 	RepoName    string    `json:"repo_name"`
 	Severity    Severity  `json:"severity"`
-	CreatedAt   time.Time `json:"created_at"`
+	CreatedAt   time.Time `json:"created_at"` // campo é preenchido pelo servidor
 }
 
 // Validate garante que os campos obrigatórios do evento foram preenchidos
