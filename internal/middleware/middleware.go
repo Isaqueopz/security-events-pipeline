@@ -4,6 +4,7 @@ package middleware
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -19,7 +20,8 @@ func Logging(next http.Handler) http.Handler {
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
-		slog.Info("http_request",
+		// evitando OWASP A09 (Falhas de Logging e Monitoramento).
+		slog.Info("http_request", 
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", sw.status,
@@ -100,10 +102,25 @@ func (rl *RateLimiter) allow(key string) bool {
 // limite é excedido.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rl.allow(r.RemoteAddr) {
+		if !rl.allow(clientIP(r)) {
 			http.Error(w, `{"error":"rate limit excedido, tente novamente mais tarde"}`, http.StatusTooManyRequests)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// clientIP extrai apenas o endereço IP de r.RemoteAddr, descartando a porta
+// de origem. Isso é essencial para o rate limit: r.RemoteAddr tem o formato
+// "IP:porta", e a porta muda a cada nova conexão TCP — se a usássemos como
+// chave, cada conexão viraria um "cliente" novo e o limite nunca valeria.
+// Nota: atrás de um proxy/load balancer, RemoteAddr seria o IP do proxy;
+// nesse caso o correto seria ler X-Forwarded-For, mas apenas confiando no
+// proxy (o header é forjável pelo cliente).
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
