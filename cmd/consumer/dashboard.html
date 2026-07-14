@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Events — Triage Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2331;
+    --border: #262d3a;
+    --text: #e6edf3;
+    --muted: #8b98a9;
+    --accent: #4cc9c0;
+    --crit: #f85149;
+    --high: #ff8c42;
+    --med: #e3b341;
+    --low: #58a6ff;
+    --info: #8b98a9;
+    --sast: #bc8cff;
+    --sca: #4cc9c0;
+    --dast: #f778ba;
+    --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --border: #d5dae1;
+      --text: #1f2328; --muted: #59636e; --accent: #1a9c93;
+      --shadow: 0 1px 2px rgba(31,35,40,.08), 0 6px 18px rgba(31,35,40,.06);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .brand h1 { font-size: 17px; margin: 0; letter-spacing: -.2px; }
+  .brand .sub { color: var(--muted); font-size: 12.5px; }
+  .status { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12.5px; }
+  .live { display: inline-flex; align-items: center; gap: 7px; }
+  .live .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .live .pulse { animation: none; } }
+  .toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 6px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border); padding: 5px 11px; border-radius: 999px; font-size: 12.5px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .kpi .label { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; }
+  .kpi .val { font-size: 27px; font-weight: 650; margin-top: 4px; letter-spacing: -.5px; }
+  .kpi .val small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .kpi.sev { border-top: 3px solid var(--stripe, var(--border)); }
+
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .controls input, .controls select {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 11px; border-radius: 9px; font-size: 13px; font-family: inherit;
+  }
+  .controls input { min-width: 220px; }
+  .controls input:focus, .controls select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sevfilter { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .chip { cursor: pointer; user-select: none; border: 1px solid var(--border); background: var(--panel);
+    color: var(--muted); padding: 5px 11px; border-radius: 999px; font-size: 12px; text-transform: capitalize; }
+  .chip[aria-pressed="true"] { color: #fff; border-color: transparent; }
+  .chip.critical[aria-pressed="true"] { background: var(--crit); }
+  .chip.high[aria-pressed="true"] { background: var(--high); color:#1a1205; }
+  .chip.medium[aria-pressed="true"] { background: var(--med); color:#1a1205; }
+  .chip.low[aria-pressed="true"] { background: var(--low); color:#04121f; }
+  .chip.info[aria-pressed="true"] { background: var(--info); color:#0c1116; }
+
+  .tablecard { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 820px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted);
+    padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--panel-2); position: sticky; top: 0; white-space: nowrap; }
+  tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; text-transform: capitalize; }
+  .pill.critical { background: color-mix(in srgb, var(--crit) 20%, transparent); color: var(--crit); }
+  .pill.high { background: color-mix(in srgb, var(--high) 20%, transparent); color: var(--high); }
+  .pill.medium { background: color-mix(in srgb, var(--med) 20%, transparent); color: var(--med); }
+  .pill.low { background: color-mix(in srgb, var(--low) 20%, transparent); color: var(--low); }
+  .pill.info { background: color-mix(in srgb, var(--info) 22%, transparent); color: var(--info); }
+
+  .tool { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 650; letter-spacing: .3px; }
+  .tool.sast { background: color-mix(in srgb, var(--sast) 18%, transparent); color: var(--sast); }
+  .tool.sca  { background: color-mix(in srgb, var(--sca) 18%, transparent); color: var(--sca); }
+  .tool.dast { background: color-mix(in srgb, var(--dast) 18%, transparent); color: var(--dast); }
+
+  .title-cell { font-weight: 560; }
+  .title-cell .meta { color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 2px; }
+  .owasp { font-size: 12.5px; color: var(--text); }
+  .owasp .code { color: var(--accent); font-weight: 650; }
+  .unclassified { color: var(--muted); font-style: italic; }
+
+  .risk { display: flex; align-items: center; gap: 9px; min-width: 92px; }
+  .risk .bar { flex: 1; height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .risk .bar i { display: block; height: 100%; border-radius: 999px; }
+  .risk .num { width: 26px; text-align: right; font-weight: 650; font-size: 13px; }
+
+  .empty { padding: 48px 20px; text-align: center; color: var(--muted); }
+  .empty code { background: var(--panel-2); padding: 2px 7px; border-radius: 6px; }
+  footer { margin-top: 20px; color: var(--muted); font-size: 12px; text-align: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>Security Events — Triage Dashboard</h1>
+        <div class="sub">Achados de SAST / SCA / DAST classificados por OWASP Top 10 e priorizados por risco</div>
+      </div>
+    </div>
+    <div class="status">
+      <span class="live"><span class="pulse"></span> <span id="clock">—</span></span>
+      <span class="toggle" id="autoToggle" role="button" tabindex="0" aria-pressed="true">⟳ Auto-refresh: ligado</span>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="controls">
+    <input id="search" type="search" placeholder="Buscar por título, repo, regra…" aria-label="Buscar">
+    <select id="owaspSel" aria-label="Filtrar por categoria OWASP"><option value="">Todas as categorias OWASP</option></select>
+    <div class="sevfilter" id="sevFilter" role="group" aria-label="Filtrar por severidade"></div>
+  </div>
+
+  <div class="tablecard">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">Risco</th>
+            <th style="width:96px">Severidade</th>
+            <th style="width:70px">Ferramenta</th>
+            <th>Achado</th>
+            <th>Categoria OWASP</th>
+            <th style="width:150px">Processado</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>
+      Nenhum achado ainda. Publique um com<br>
+      <code>curl -X POST http://localhost:8080/events -H "Content-Type: application/json" -d '{…}'</code>
+    </div>
+  </div>
+
+  <footer>Dados de <span class="mono">GET /triaged-events</span> · pipeline assíncrona Go + RabbitMQ + PostgreSQL</footer>
+</div>
+
+<script>
+  const SEVS = ["critical", "high", "medium", "low", "info"];
+  const SEV_COLOR = { critical: "var(--crit)", high: "var(--high)", medium: "var(--med)", low: "var(--low)", info: "var(--info)" };
+  const state = { data: [], sevOff: new Set(), owasp: "", q: "", auto: true };
+
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // monta os chips de severidade
+  const sevFilter = document.getElementById("sevFilter");
+  SEVS.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "chip " + s; b.textContent = s; b.setAttribute("aria-pressed", "true");
+    b.onclick = () => { state.sevOff.has(s) ? state.sevOff.delete(s) : state.sevOff.add(s);
+      b.setAttribute("aria-pressed", state.sevOff.has(s) ? "false" : "true"); render(); };
+    sevFilter.appendChild(b);
+  });
+  document.getElementById("search").addEventListener("input", e => { state.q = e.target.value.toLowerCase(); render(); });
+  document.getElementById("owaspSel").addEventListener("change", e => { state.owasp = e.target.value; render(); });
+
+  const autoBtn = document.getElementById("autoToggle");
+  const setAuto = on => { state.auto = on; autoBtn.setAttribute("aria-pressed", on); autoBtn.textContent = "⟳ Auto-refresh: " + (on ? "ligado" : "desligado"); };
+  autoBtn.onclick = () => setAuto(!state.auto);
+  autoBtn.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAuto(!state.auto); } };
+
+  function fmtTime(t) {
+    const d = new Date(t); if (isNaN(d)) return "—";
+    return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function renderKpis() {
+    const d = state.data;
+    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    d.forEach(e => { const s = (e.severity || "").toLowerCase(); if (s in counts) counts[s]++; });
+    const avg = d.length ? Math.round(d.reduce((a, e) => a + (e.risk_score || 0), 0) / d.length) : 0;
+    const k = document.getElementById("kpis");
+    k.innerHTML =
+      `<div class="kpi"><div class="label">Total de achados</div><div class="val">${d.length}</div></div>
+       <div class="kpi"><div class="label">Risco médio</div><div class="val">${avg}<small>/100</small></div></div>` +
+      SEVS.map(s => `<div class="kpi sev" style="--stripe:${SEV_COLOR[s]}"><div class="label">${s}</div><div class="val">${counts[s]}</div></div>`).join("");
+  }
+
+  function refreshOwaspOptions() {
+    const sel = document.getElementById("owaspSel");
+    const cats = [...new Set(state.data.map(e => e.owasp_category).filter(Boolean))].sort();
+    const cur = state.owasp;
+    sel.innerHTML = `<option value="">Todas as categorias OWASP</option>` +
+      cats.map(c => `<option value="${esc(c)}"${c === cur ? " selected" : ""}>${esc(c)}</option>`).join("");
+  }
+
+  function render() {
+    renderKpis();
+    let rows = state.data.filter(e => !state.sevOff.has((e.severity || "").toLowerCase()));
+    if (state.owasp) rows = rows.filter(e => e.owasp_category === state.owasp);
+    if (state.q) rows = rows.filter(e =>
+      (e.title + " " + e.repo_name + " " + e.rule_id + " " + e.source).toLowerCase().includes(state.q));
+    rows.sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0));
+
+    const tb = document.getElementById("rows");
+    const empty = document.getElementById("empty");
+    empty.hidden = rows.length > 0;
+    tb.innerHTML = rows.map(e => {
+      const sev = (e.severity || "info").toLowerCase();
+      const tool = (e.tool || "").toLowerCase();
+      const score = e.risk_score || 0;
+      const oc = e.owasp_category || "Unclassified";
+      const isU = oc === "Unclassified";
+      const ocHtml = isU ? `<span class="unclassified">Unclassified</span>`
+        : `<span class="owasp"><span class="code">${esc(oc.split(" - ")[0])}</span> — ${esc(oc.split(" - ").slice(1).join(" - "))}</span>`;
+      return `<tr>
+        <td><div class="risk"><div class="bar"><i style="width:${score}%;background:${SEV_COLOR[sev]}"></i></div><span class="num mono">${score}</span></div></td>
+        <td><span class="pill ${sev}">${esc(sev)}</span></td>
+        <td><span class="tool ${tool}">${esc(e.tool || "?")}</span></td>
+        <td class="title-cell">${esc(e.title)}<div class="meta mono">${esc(e.repo_name)} · ${esc(e.rule_id)} · ${esc(e.source)}</div></td>
+        <td>${ocHtml}</td>
+        <td class="mono" style="color:var(--muted);font-size:12px">${fmtTime(e.processed_at)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/triaged-events?limit=200", { cache: "no-store" });
+      const data = await res.json();
+      state.data = Array.isArray(data) ? data : [];
+      refreshOwaspOptions();
+      render();
+    } catch (err) {
+      console.error("falha ao carregar", err);
+    }
+    document.getElementById("clock").textContent = "atualizado " + new Date().toLocaleTimeString("pt-BR");
+  }
+
+  load();
+  setInterval(() => { if (state.auto) load(); }, 4000);
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -23,10 +24,19 @@ import (
 	"github.com/isaqueopz/security-events-pipeline/internal/triage"
 )
 
-func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+// dashboardHTML é a página de visualização dos achados triados, embutida no
+// binário em tempo de compilação (//go:embed) para que o container distroless
+// não precise de arquivos extras em runtime.
+//
+//go:embed dashboard.html
+var dashboardHTML []byte
 
-	amqpURL := getenv("AMQP_URL", "amqp://guest:guest@localhost:5672/")
+func main() {
+	// configura o logger global para escrever logs em JSON na saída padrão.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil))) // A09 -  Security Logging 
+
+	// a URL de conexão (que contém credenciais) vem do ambiente, não está hardcoded no código versionado
+	amqpURL := getenv("AMQP_URL", "amqp://guest:guest@localhost:5672/") // A05 - Secure Coding
 	pgDSN := getenv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/security_events?sslmode=disable")
 	addr := getenv("CONSUMER_ADDR", ":8081")
 
@@ -47,14 +57,18 @@ func main() {
 
 	q, err := connectQueueWithRetry(amqpURL, 10, 2*time.Second)
 	if err != nil {
+		//  padrão universal de Go: (resultado, erro).
 		slog.Error("falha ao conectar ao rabbitmq", "error", err)
+		// — o tratamento de erro idiomático de Go.
 		os.Exit(1)
 	}
+	// defer garante limpeza; roda em ordem LIFO no fim da função
 	defer q.Close()
 
 	go consumeLoop(ctx, q, db)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", handleDashboard)
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /triaged-events", handleList(db))
 	mux.HandleFunc("GET /triaged-events/{id}", handleGetByID(db))
@@ -162,6 +176,13 @@ func connectStoreWithRetry(dsn string, attempts int, delay time.Duration) (*stor
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+// handleDashboard serve a página HTML de visualização dos achados triados.
+// A página consome a própria API GET /triaged-events (mesma origem, sem CORS).
+func handleDashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(dashboardHTML)
 }
 
 func handleList(db *store.Store) http.HandlerFunc {
