@@ -5,29 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Security Events — Triage Dashboard</title>
 <style>
+  /* Paleta Avenue (avenue.us): verde escuro #002820 como base,
+     verde neon #4ae07f como acento e off-white #faf6f2 como texto. */
   :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-2: #1c2331;
-    --border: #262d3a;
-    --text: #e6edf3;
-    --muted: #8b98a9;
-    --accent: #4cc9c0;
-    --crit: #f85149;
+    --bg: #002820;
+    --panel: #0b2521;
+    --panel-2: #123830;
+    --border: #1d4d41;
+    --text: #faf6f2;
+    --muted: #8faea4;
+    --accent: #4ae07f;
+    --crit: #dd584e;
     --high: #ff8c42;
-    --med: #e3b341;
-    --low: #58a6ff;
-    --info: #8b98a9;
-    --sast: #bc8cff;
-    --sca: #4cc9c0;
-    --dast: #f778ba;
-    --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+    --med: #ffce00;
+    --low: #00c3ff;
+    --info: #8faea4;
+    --sast: #1be2fa;
+    --sca: #4ae07f;
+    --dast: #de2453;
+    --shadow: 0 1px 3px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.3);
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --border: #d5dae1;
-      --text: #1f2328; --muted: #59636e; --accent: #1a9c93;
-      --shadow: 0 1px 2px rgba(31,35,40,.08), 0 6px 18px rgba(31,35,40,.06);
+      --bg: #faf6f2; --panel: #ffffff; --panel-2: #f1ece6; --border: #ddd5cc;
+      --text: #002820; --muted: #5c6f68; --accent: #0f7a4a;
+      --crit: #c33f35; --low: #0079a8; --med: #a97a00; --info: #5c6f68;
+      --sast: #0a8ba3; --sca: #0f7a4a; --dast: #b81d45;
+      --shadow: 0 1px 2px rgba(0,40,32,.08), 0 6px 18px rgba(0,40,32,.07);
     }
   }
   * { box-sizing: border-box; }
