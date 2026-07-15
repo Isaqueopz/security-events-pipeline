@@ -20,7 +20,7 @@ func Logging(next http.Handler) http.Handler {
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
-		// evitando OWASP A09 (Falhas de Logging e Monitoramento).
+		// evitando OWASP A09:2025 (Security Logging and Alerting Failures).
 		slog.Info("http_request", 
 			"method", r.Method,
 			"path", r.URL.Path,

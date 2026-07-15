@@ -10,22 +10,35 @@ import (
 )
 
 // keywordCategory associa palavras-chave encontradas no rule_id/título do
-// achado a uma categoria do OWASP Top 10 (2021). É uma heurística simples,
+// achado a uma categoria do OWASP Top 10 (2025). É uma heurística simples,
 // não um substituto para uma triagem manual completa.
+//
+// A ordem das entradas define a precedência: Classify para na primeira
+// categoria que casar. Isso importa porque as palavras-chave se sobrepõem —
+// "authorization" contém "auth", então A01 precisa ser avaliada antes de A07
+// para que um achado de autorização não caia em falhas de autenticação.
+//
+// Mudanças relevantes em relação ao Top 10 de 2021:
+//   - SSRF deixou de ser categoria própria (era A10:2021) e foi absorvido
+//     por A01:2025 - Broken Access Control.
+//   - "Vulnerable and Outdated Components" (A06:2021) foi absorvida pela nova
+//     A03:2025 - Software Supply Chain Failures, que também recebeu o tema de
+//     supply chain antes mapeado em A08:2021.
+//   - A10:2025 - Mishandling of Exceptional Conditions é uma categoria nova.
 var keywordCategory = []struct {
 	keywords []string
 	category string
 }{
-	{[]string{"idor", "access control", "authorization", "privilege"}, "A01:2021 - Broken Access Control"},
-	{[]string{"crypto", "encryption", "hash", "cipher", "tls"}, "A02:2021 - Cryptographic Failures"},
-	{[]string{"sql", "injection", "xss", "command injection", "ldap"}, "A03:2021 - Injection"},
-	{[]string{"insecure design", "threat model"}, "A04:2021 - Insecure Design"},
-	{[]string{"misconfig", "config", "default credentials", "cors"}, "A05:2021 - Security Misconfiguration"},
-	{[]string{"outdated", "dependency", "cve", "component", "vulnerable library"}, "A06:2021 - Vulnerable and Outdated Components"},
-	{[]string{"auth", "session", "credential", "password", "mfa"}, "A07:2021 - Identification and Authentication Failures"},
-	{[]string{"deserialization", "integrity", "supply chain"}, "A08:2021 - Software and Data Integrity Failures"},
-	{[]string{"logging", "monitoring", "audit trail"}, "A09:2021 - Security Logging and Monitoring Failures"},
-	{[]string{"ssrf"}, "A10:2021 - Server-Side Request Forgery"},
+	{[]string{"idor", "access control", "authorization", "privilege", "ssrf"}, "A01:2025 - Broken Access Control"},
+	{[]string{"misconfig", "config", "default credentials", "cors"}, "A02:2025 - Security Misconfiguration"},
+	{[]string{"supply chain", "outdated", "dependency", "cve", "component", "vulnerable library"}, "A03:2025 - Software Supply Chain Failures"},
+	{[]string{"crypto", "encryption", "hash", "cipher", "tls"}, "A04:2025 - Cryptographic Failures"},
+	{[]string{"sql", "injection", "xss", "command injection", "ldap"}, "A05:2025 - Injection"},
+	{[]string{"insecure design", "threat model"}, "A06:2025 - Insecure Design"},
+	{[]string{"auth", "session", "credential", "password", "mfa"}, "A07:2025 - Authentication Failures"},
+	{[]string{"deserialization", "integrity"}, "A08:2025 - Software or Data Integrity Failures"},
+	{[]string{"logging", "monitoring", "alerting", "audit trail"}, "A09:2025 - Security Logging and Alerting Failures"},
+	{[]string{"exceptional condition", "error handling", "fail open", "unhandled exception", "stack trace"}, "A10:2025 - Mishandling of Exceptional Conditions"},
 }
 
 // severityWeight define o peso base de cada severidade no cálculo do score

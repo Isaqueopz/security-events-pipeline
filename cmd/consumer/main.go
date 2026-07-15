@@ -33,10 +33,10 @@ var dashboardHTML []byte
 
 func main() {
 	// configura o logger global para escrever logs em JSON na saída padrão.
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil))) // A09 -  Security Logging 
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil))) // A09 - Security Logging and Alerting Failures
 
 	// a URL de conexão (que contém credenciais) vem do ambiente, não está hardcoded no código versionado
-	amqpURL := getenv("AMQP_URL", "amqp://guest:guest@localhost:5672/") // A05 - Secure Coding
+	amqpURL := getenv("AMQP_URL", "amqp://guest:guest@localhost:5672/") // A02 - Security Misconfiguration
 	pgDSN := getenv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/security_events?sslmode=disable")
 	addr := getenv("CONSUMER_ADDR", ":8081")
 

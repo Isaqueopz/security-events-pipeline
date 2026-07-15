@@ -65,7 +65,7 @@ curl http://localhost:8081/triaged-events
 curl http://localhost:8081/triaged-events/b1f2...
 ```
 
-O consumer classifica automaticamente o achado em uma categoria do OWASP Top 10 (2021) com base em palavras-chave do `rule_id`/`title`/`description`, e calcula um `risk_score` (0-100) combinando severidade e tipo de ferramenta.
+O consumer classifica automaticamente o achado em uma categoria do OWASP Top 10 (2025) com base em palavras-chave do `rule_id`/`title`/`description`, e calcula um `risk_score` (0-100) combinando severidade e tipo de ferramenta.
 
 ## Decisões de secure coding
 

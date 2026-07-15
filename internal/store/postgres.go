@@ -1,7 +1,7 @@
 // Package store cuida da persistência dos achados triados no Postgres.
 // Todas as queries usam parâmetros posicionais ($1, $2, ...) — nunca
 // concatenação de strings — para eliminar o risco de SQL injection
-// (OWASP A03:2021).
+// (OWASP A05:2025 - Injection).
 package store
 
 import (
